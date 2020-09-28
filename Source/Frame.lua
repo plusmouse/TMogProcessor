@@ -11,8 +11,8 @@ INVENTORY_TYPES_TO_SLOT = {
 ["INVTYPE_FEET"] = {8},
 ["INVTYPE_WRIST"] = {9},
 ["INVTYPE_HAND"] = {10},
-["INVTYPE_FINGER"] = {11,12},
-["INVTYPE_TRINKET"] = {13,14},
+--["INVTYPE_FINGER"] = {11,12},
+--["INVTYPE_TRINKET"] = {13,14},
 ["INVTYPE_CLOAK"] = {15},
 ["INVTYPE_WEAPON"] = {16,17},
 ["INVTYPE_SHIELD"] = {17},
@@ -32,6 +32,7 @@ function GetSlotSource(index, link)
   local pa = PMDressUpFrame.ModelScene:GetPlayerActor()
   local possibleSlots = INVENTORY_TYPES_TO_SLOT[select(9, GetItemInfo(link))]
   if possibleSlots == nil then
+    print("nil slots")
     return
   end
 
@@ -39,10 +40,10 @@ function GetSlotSource(index, link)
     local source = pa:GetSlotTransmogSources(slot)
     if source ~= 0 then
       table.insert(SOURCES, {s = source, index = index})
-      return
+      return true
     end
   end
-  return
+  return false
 end
 
 local function ResetPlayer()
@@ -58,7 +59,7 @@ end
 
 SOURCES = {}
 function PMSetup(raceFilename, classFilename)
-  PMDressUpFrame:Hide()
+  --PMDressUpFrame:Hide()
   ClearScene(PMDressUpFrame)
   BatchStep(ResetPlayer(), 1, 500)
 
@@ -84,20 +85,23 @@ function BatchStep(pa, start, limit)
     print("ending")
     return
   end
-  print(start)
+  print(start, AUCTIONATOR_RAW_FULL_SCAN[start].itemLink)
 
   for i=start, math.min(limit, #AUCTIONATOR_RAW_FULL_SCAN) do
     local link = AUCTIONATOR_RAW_FULL_SCAN[i].itemLink
-    local classID = select(6, GetItemInfoInstant(link))
 
-    if classID == LE_ITEM_CLASS_WEAPON or classID == LE_ITEM_CLASS_ARMOR then
-      local item = Item:CreateFromItemID(AUCTIONATOR_RAW_FULL_SCAN[i].auctionInfo[17])
-      item:ContinueOnItemLoad((function(index)
-       return function()
-         local result = pa:TryOn(link)
-         GetSlotSource(index, link)
+    local classID = select(6, GetItemInfoInstant(link))
+    if (classID == LE_ITEM_CLASS_WEAPON or classID == LE_ITEM_CLASS_ARMOR) and
+       IsDressableItem(link) then
+     local result = pa:TryOn(link)
+     if result == Enum.ItemTryOnReason.Success then
+       if not GetSlotSource(index, link) then
+         C_Timer.After(0.01, function()
+           BatchStep(pa, i, limit-start + i)
+         end)
+         return
        end
-     end)(i))
+     end
     end
   end
 
