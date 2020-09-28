@@ -31,62 +31,21 @@ function GetSlotSource(index)
   return
 end
 
-function ClearScene(frame)
+local function ResetPlayer()
+  SetupPlayerForModelScene(PMDressUpFrame.ModelScene, nil, false, false);
+  return PMDressUpFrame.ModelScene:GetPlayerActor()
+end
+
+local function ClearScene(frame)
   frame.ModelScene:ClearScene();
-  frame.ModelScene:SetViewInsets(0, 0, 0, 0);
   frame.ModelScene:TransitionToModelSceneID(290, CAMERA_TRANSITION_TYPE_IMMEDIATE, CAMERA_MODIFICATION_TYPE_DISCARD, true);
-  SetupPlayerForModelScene(frame.ModelScene, nil, false, false);
+  ResetPlayer()
 end
 
 SOURCES = {}
 function PMSetup(raceFilename, classFilename)
-  if not raceFilename then
-    raceFilename = select(2, UnitRace("player"));
-  end
-  if not classFilename then
-    classFilename = select(2, UnitClass("player"));
-  end
-
 	local frame = PMDressUpFrame;
-
-	--SetPMDressUpBackground(frame, raceFilename, classFilename);
-
-
-  local failCount = 0
-  local tmogIndex = 0
-  for i=6000,8000 do
-    ClearScene(frame)
-    local pa = frame.ModelScene:GetPlayerActor()
-    local link = AUCTIONATOR_RAW_FULL_SCAN[i].itemLink
-    local classID = select(6, GetItemInfoInstant(link))
-    if classID == LE_ITEM_CLASS_WEAPON or classID == LE_ITEM_CLASS_ARMOR then
-      SetupPlayerForModelScene(frame.ModelScene, nil, false, false);
-      local result = pa:TryOn(link)
-      if ( result ~= Enum.ItemTryOnReason.Success ) then
-        local item = Item:CreateFromItemID(AUCTIONATOR_RAW_FULL_SCAN[i].auctionInfo[17])
-        item:ContinueOnItemLoad((function(index)
-         return function()
-          ClearScene(frame)
-          local pa = frame.ModelScene:GetPlayerActor()
-          GetSlotSource(index)
-          local result = pa:TryOn(link)
-          if ( result ~= Enum.ItemTryOnReason.Success ) then
-            failCount = failCount + 1
-            print("fail", index, link)
-          end
-          print("fc", failCount)
-         end
-       end)(i))
-      else
-        GetSlotSource(i)
-        tmogIndex = tmogIndex + 1
-      end
-      SetupPlayerForModelScene(frame.ModelScene, nil, false, false);
-    end
-  end
-  print("fc tots", failCount)
-  print("ti tots", tmogIndex)
-
+  BatchStep(1, 100)
 	return frame;
 end
 
@@ -97,6 +56,44 @@ function MergeSourceIDs()
       print(AUCTIONATOR_RAW_FULL_SCAN[details.index].itemLink)
     end
   end
+end
+
+function BatchStep(start, limit)
+  if start > #AUCTIONATOR_RAW_FULL_SCAN then
+    print("ending")
+    return
+  end
+  print(start)
+
+  ClearScene(PMDressUpFrame)
+
+  for i=start, math.min(limit, #AUCTIONATOR_RAW_FULL_SCAN) do
+    local pa = ResetPlayer()
+    if AUCTIONATOR_RAW_FULL_SCAN[i] == nil then
+      print(i, start, limit, #AUCTIONATOR_RAW_FULL_SCAN)
+    end
+    local link = AUCTIONATOR_RAW_FULL_SCAN[i].itemLink
+    local classID = select(6, GetItemInfoInstant(link))
+    if classID == LE_ITEM_CLASS_WEAPON or classID == LE_ITEM_CLASS_ARMOR then
+      local result = pa:TryOn(link)
+      if ( result ~= Enum.ItemTryOnReason.Success ) then
+        local item = Item:CreateFromItemID(AUCTIONATOR_RAW_FULL_SCAN[i].auctionInfo[17])
+        item:ContinueOnItemLoad((function(index)
+         return function()
+          local pa = ResetPlayer()
+          local result = pa:TryOn(link)
+          GetSlotSource(index)
+         end
+       end)(i))
+      else
+        GetSlotSource(i)
+      end
+    end
+  end
+
+  C_Timer.After(0.01, function()
+    BatchStep(limit + 1, limit + 1 + (limit-start))
+  end)
 end
 
 function PMOnShow()
