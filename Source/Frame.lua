@@ -70,7 +70,6 @@ local function ClearScene(frame)
 end
 
 SOURCES = {}
-local once = true
 function PMSetup()
   PMDressUpFrame.mode = "player"
   ClearScene(PMDressUpFrame)
@@ -89,10 +88,6 @@ function PMUpdate()
   end
 end
 
-function PMModel(...)
-  print("pmmodel", ...)
-end
-
 function FindSourceID(id)
   local result = {}
   for index, details in ipairs(SOURCES) do
@@ -107,21 +102,9 @@ function FindSourceID(id)
   end
 end
 
-local firstTry = true
-local missing = 0
-local missingRender = 0
 function BatchStep(pa, start, limit)
   if start > #AUCTIONATOR_RAW_FULL_SCAN then
     print("ending", start, missing, missingRender, #SOURCES)
-    --if firstTry or #SOURCES == 0 then
-      --firstTry = false
-      --missing = 0
-      --missingRender = 0
-      --SOURCES = {}
-      --C_Timer.After(1, function()
-        --BatchStep(pa, 1, limit - start + 1)
-      --end)
-    --end
     return
   end
 
