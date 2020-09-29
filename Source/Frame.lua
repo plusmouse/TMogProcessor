@@ -32,8 +32,7 @@ function GetSlotSource(index, link)
   local pa = PMDressUpFrame.ModelScene:GetPlayerActor()
   local possibleSlots = INVENTORY_TYPES_TO_SLOT[select(9, GetItemInfo(link))]
   if possibleSlots == nil then
-    print("nil slots")
-    return
+    return false
   end
 
   for _, slot in ipairs(possibleSlots) do
@@ -48,12 +47,10 @@ end
 
 function GetSlotSourceHard(index, link)
   local pa = PMDressUpFrame.ModelScene:GetPlayerActor()
-  local possibleSlots = INVENTORY_TYPES_TO_SLOT[select(9, GetItemInfo(link))]
   for j = 0, 23 do
     local source = pa:GetSlotTransmogSources(j)
     if source ~= 0 then
       table.insert(SOURCES, {s = source, index = index})
-      --table.insert(possibleSlots, j)
       return true
     end
   end
@@ -69,15 +66,17 @@ end
 local function ClearScene(frame)
   frame.ModelScene:ClearScene();
   frame.ModelScene:TransitionToModelSceneID(290, CAMERA_TRANSITION_TYPE_IMMEDIATE, CAMERA_MODIFICATION_TYPE_DISCARD, true);
+  frame.ModelScene:SetViewInsets(0, 0, 0, 0);
   return ResetPlayer()
 end
 
 SOURCES = {}
 function PMSetup(raceFilename, classFilename)
-  --PMDressUpFrame:Hide()
-  ClearScene(PMDressUpFrame)
-  C_Timer.After(3, function()
-    BatchStep(ResetPlayer(), 1, 500)
+  local pa = ClearScene(PMDressUpFrame)
+  PMDressUpFrame.mode = "player"
+  PMDressUpFrame:Show()
+  C_Timer.After(10, function()
+    --BatchStep(pa, 1, 500)
   end)
 
   return PMDressUpFrame
@@ -97,50 +96,47 @@ function FindSourceID(id)
   end
 end
 
+local firstTry = true
 local missing = 0
-function BatchStep(pa, start, limit, try)
-  try = try or 1
-
+local missingRender = 0
+function BatchStep(pa, start, limit)
   if start > #AUCTIONATOR_RAW_FULL_SCAN then
-    print("ending", start, missing, #SOURCES)
+    print("ending", start, missing, missingRender, #SOURCES)
+    --if firstTry or #SOURCES == 0 then
+      --firstTry = false
+      --missing = 0
+      --missingRender = 0
+      --SOURCES = {}
+      --C_Timer.After(1, function()
+        --BatchStep(pa, 1, limit - start + 1)
+      --end)
+    --end
     return
   end
 
   for i=start, math.min(limit, #AUCTIONATOR_RAW_FULL_SCAN) do
     local link = AUCTIONATOR_RAW_FULL_SCAN[i].itemLink
 
-    local classID = select(6, GetItemInfoInstant(link))
-    if (classID == LE_ITEM_CLASS_WEAPON or classID == LE_ITEM_CLASS_ARMOR) and
-       IsDressableItem(link) then
-      local pa = ClearScene(PMDressUpFrame)
-      local result = pa:TryOn(link)
-      if result == Enum.ItemTryOnReason.Success then
-        if try >= 3 then
-          pa:TryOn(link)
-          if not GetSlotSourceHard(i, link) then
-            if try < 5 then
-              C_Timer.After(0.01, function()
-                BatchStep(pa, i, limit-start + i, try + 1)
-              end)
-              return
-            else
-              print("dropped", link)
-            end
+    local item = Item:CreateFromItemID(AUCTIONATOR_RAW_FULL_SCAN[i].auctionInfo[17])
+    item:ContinueOnItemLoad((function(index, link)
+      return function()
+        local arr = {GetItemInfo(link)}
+      --if (classID == LE_ITEM_CLASS_WEAPON or classID == LE_ITEM_CLASS_ARMOR) and
+        if IsDressableItem(link) then
+          --local pa = ClearScene(PMDressUpFrame)
+          local result = pa:TryOn(link)
+          if result ~= Enum.ItemTryOnReason.Success then
+            missingRender = missingRender + 1
+          elseif not GetSlotSource(index, link) then
+            missing = missing + 1
           end
-        elseif not GetSlotSource(i, link) then
-          C_Timer.After(0.01, function()
-            BatchStep(pa, i, limit-start + i, try + 1)
-          end)
-          return
         end
-      else
-        missing = missing + 1
       end
-    end
+    end)(i, link))
   end
 
   C_Timer.After(0.01, function()
-    BatchStep(pa, limit + 1, limit + 1 + (limit-start), 1)
+    BatchStep(pa, limit + 1, limit + 1 + (limit-start))
   end)
 end
 

@@ -1,5 +1,5 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/">
-	<Frame name="PMDressUpFrame" toplevel="true" enableMouse="true" parent="UIParent" inherits="ButtonFrameTemplateMinimizable">
+	<Frame name="PMDressUpFrame" toplevel="true" enableMouse="true" parent="UIParent" inherits="ButtonFrameTemplateMinimizable" hidden="true">
 		<Size x="450" y="545"/>
 		<Anchors>
 			<Anchor point="TOPLEFT" x="70" y="-104"/>
@@ -37,7 +37,7 @@
 			</Layer>
 		</Layers>
     <Scripts>
-      <OnShow function="PMOnShow"/>
+      <OnLoad function="PMSetup"/>
     </Scripts>
 	</Frame>
 </Ui>
