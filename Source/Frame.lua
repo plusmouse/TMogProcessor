@@ -69,7 +69,7 @@ end
 local function ClearScene(frame)
   frame.ModelScene:ClearScene();
   frame.ModelScene:TransitionToModelSceneID(290, CAMERA_TRANSITION_TYPE_IMMEDIATE, CAMERA_MODIFICATION_TYPE_DISCARD, true);
-  ResetPlayer()
+  return ResetPlayer()
 end
 
 SOURCES = {}
@@ -97,11 +97,12 @@ function FindSourceID(id)
   end
 end
 
+local missing = 0
 function BatchStep(pa, start, limit, try)
   try = try or 1
 
   if start > #AUCTIONATOR_RAW_FULL_SCAN then
-    print("ending")
+    print("ending", start, missing, #SOURCES)
     return
   end
 
@@ -111,28 +112,30 @@ function BatchStep(pa, start, limit, try)
     local classID = select(6, GetItemInfoInstant(link))
     if (classID == LE_ITEM_CLASS_WEAPON or classID == LE_ITEM_CLASS_ARMOR) and
        IsDressableItem(link) then
-     local result = pa:TryOn(link)
-     if result == Enum.ItemTryOnReason.Success then
-       if try >= 3 then
-         pa = ResetPlayer()
-         pa:TryOn(link)
-         if not GetSlotSourceHard(i, link) then
-           if try < 5 then
-             C_Timer.After(0.01, function()
-               BatchStep(pa, i, limit-start + i, try + 1)
-             end)
-             return
-           else
-             print("dropped", link)
-           end
-         end
-       elseif not GetSlotSource(i, link) then
-         C_Timer.After(0.01, function()
-           BatchStep(pa, i, limit-start + i, try + 1)
-         end)
-         return
-       end
-     end
+      local pa = ClearScene(PMDressUpFrame)
+      local result = pa:TryOn(link)
+      if result == Enum.ItemTryOnReason.Success then
+        if try >= 3 then
+          pa:TryOn(link)
+          if not GetSlotSourceHard(i, link) then
+            if try < 5 then
+              C_Timer.After(0.01, function()
+                BatchStep(pa, i, limit-start + i, try + 1)
+              end)
+              return
+            else
+              print("dropped", link)
+            end
+          end
+        elseif not GetSlotSource(i, link) then
+          C_Timer.After(0.01, function()
+            BatchStep(pa, i, limit-start + i, try + 1)
+          end)
+          return
+        end
+      else
+        missing = missing + 1
+      end
     end
   end
 
