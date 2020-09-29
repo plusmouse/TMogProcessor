@@ -36,8 +36,11 @@
 				</Texture>
 			</Layer>
 		</Layers>
-    <Scripts>
-      <OnLoad function="PMSetup"/>
-    </Scripts>
 	</Frame>
+	<Frame name="PMUpdater" toplevel="true" parent="UIParent">
+    <Scripts>
+      <OnShow function="PMSetup"/>
+      <OnUpdate function="PMUpdate"/>
+    </Scripts>
+  </Frame>
 </Ui>

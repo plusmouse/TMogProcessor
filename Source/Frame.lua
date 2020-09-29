@@ -58,28 +58,39 @@ function GetSlotSourceHard(index, link)
   return false
 end
 
-local function ResetPlayer()
-  SetupPlayerForModelScene(PMDressUpFrame.ModelScene, nil, false, false);
+local function PlayerActor()
   return PMDressUpFrame.ModelScene:GetPlayerActor()
 end
 
 local function ClearScene(frame)
   frame.ModelScene:ClearScene();
-  frame.ModelScene:TransitionToModelSceneID(290, CAMERA_TRANSITION_TYPE_IMMEDIATE, CAMERA_MODIFICATION_TYPE_DISCARD, true);
   frame.ModelScene:SetViewInsets(0, 0, 0, 0);
-  return ResetPlayer()
+  frame.ModelScene:TransitionToModelSceneID(290, CAMERA_TRANSITION_TYPE_IMMEDIATE, CAMERA_MODIFICATION_TYPE_DISCARD, true);
+  SetupPlayerForModelScene(PMDressUpFrame.ModelScene, nil, false, false);
 end
 
 SOURCES = {}
-function PMSetup(raceFilename, classFilename)
-  local pa = ClearScene(PMDressUpFrame)
+local once = true
+function PMSetup()
   PMDressUpFrame.mode = "player"
-  PMDressUpFrame:Show()
-  C_Timer.After(10, function()
-    --BatchStep(pa, 1, 500)
-  end)
+  ClearScene(PMDressUpFrame)
+
+  if PlayerActor():IsLoaded() then
+    BatchStep(PlayerActor(), 1, 500)
+  end
 
   return PMDressUpFrame
+end
+
+function PMUpdate()
+  if not PlayerActor():IsLoaded() then
+    print("setup")
+    PMSetup()
+  end
+end
+
+function PMModel(...)
+  print("pmmodel", ...)
 end
 
 function FindSourceID(id)
