@@ -46,6 +46,21 @@ function GetSlotSource(index, link)
   return false
 end
 
+function GetSlotSourceHard(index, link)
+  local pa = PMDressUpFrame.ModelScene:GetPlayerActor()
+  local possibleSlots = INVENTORY_TYPES_TO_SLOT[select(9, GetItemInfo(link))]
+  for j = 0, 23 do
+    local source = pa:GetSlotTransmogSources(j)
+    if source ~= 0 then
+      table.insert(SOURCES, {s = source, index = index})
+      --table.insert(possibleSlots, j)
+      return true
+    end
+  end
+  --print("drop rank 2", link, select(9, GetItemInfo(link)))
+  return false
+end
+
 local function ResetPlayer()
   SetupPlayerForModelScene(PMDressUpFrame.ModelScene, nil, false, false);
   return PMDressUpFrame.ModelScene:GetPlayerActor()
@@ -61,7 +76,9 @@ SOURCES = {}
 function PMSetup(raceFilename, classFilename)
   --PMDressUpFrame:Hide()
   ClearScene(PMDressUpFrame)
-  BatchStep(ResetPlayer(), 1, 500)
+  C_Timer.After(3, function()
+    BatchStep(ResetPlayer(), 1, 500)
+  end)
 
   return PMDressUpFrame
 end
@@ -80,12 +97,13 @@ function FindSourceID(id)
   end
 end
 
-function BatchStep(pa, start, limit)
+function BatchStep(pa, start, limit, try)
+  try = try or 1
+
   if start > #AUCTIONATOR_RAW_FULL_SCAN then
     print("ending")
     return
   end
-  print(start, AUCTIONATOR_RAW_FULL_SCAN[start].itemLink)
 
   for i=start, math.min(limit, #AUCTIONATOR_RAW_FULL_SCAN) do
     local link = AUCTIONATOR_RAW_FULL_SCAN[i].itemLink
@@ -95,9 +113,22 @@ function BatchStep(pa, start, limit)
        IsDressableItem(link) then
      local result = pa:TryOn(link)
      if result == Enum.ItemTryOnReason.Success then
-       if not GetSlotSource(index, link) then
+       if try >= 3 then
+         pa = ResetPlayer()
+         pa:TryOn(link)
+         if not GetSlotSourceHard(i, link) then
+           if try < 5 then
+             C_Timer.After(0.01, function()
+               BatchStep(pa, i, limit-start + i, try + 1)
+             end)
+             return
+           else
+             print("dropped", link)
+           end
+         end
+       elseif not GetSlotSource(i, link) then
          C_Timer.After(0.01, function()
-           BatchStep(pa, i, limit-start + i)
+           BatchStep(pa, i, limit-start + i, try + 1)
          end)
          return
        end
@@ -106,7 +137,7 @@ function BatchStep(pa, start, limit)
   end
 
   C_Timer.After(0.01, function()
-    BatchStep(pa, limit + 1, limit + 1 + (limit-start))
+    BatchStep(pa, limit + 1, limit + 1 + (limit-start), 1)
   end)
 end
 
